@@ -104,6 +104,10 @@ The LLM is the only non-deterministic component. Every other layer treats the LL
 | `CACHE_ENABLED` | `true` | File-backed response cache under `logs/cache/` |
 | `RECORD_MODE` | `false` | Test-only — currently unused (`FixtureLlmClient` is the default test seam) |
 
+## Design trail
+
+The full reasoning trail — assignment, implementation prompt, architecture (with two independent reviews), and testing concept — lives in [`docs/`](./docs/). See [`docs/README.md`](./docs/README.md) for the reading order.
+
 ## Project layout
 
 ```
