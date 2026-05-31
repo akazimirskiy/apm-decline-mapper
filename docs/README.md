@@ -13,16 +13,20 @@ Self-contained trail of how the implementation was reasoned out — assignment �
 | 06 | [`06_arch_review_resolution.md`](./06_arch_review_resolution.md) | Per-finding prose: how each was resolved in the impl. |
 | 07 | [`07_test_review_prompt.md`](./07_test_review_prompt.md) | Reusable prompt for a hard test-strategy review. |
 | 08 | [`08_test_review_findings.md`](./08_test_review_findings.md) | Findings of the test review + adoption table. |
+| 09 | [`09_code_review_prompt.md`](./09_code_review_prompt.md) | Reusable prompt for a hard post-implementation code review. |
+| 10 | [`10_code_review_findings.md`](./10_code_review_findings.md) | Findings of the code review + adoption table. |
 
 ## Workflow that produced these
 
 1. Read the assignment (00).
 2. Drafted the implementation prompt (01 rev 1).
 3. Drafted the architecture (02 v1).
-4. Independent arch review (04 → 05). Resolved findings (06). Architecture became v3.1; prompt became rev 2.
+4. Independent **arch review** (04 → 05). Resolved findings (06). Architecture → v3.1; prompt → rev 2.
 5. Drafted testing concept (03 rev 1).
-6. Independent test review (07 → 08). Resolved findings. Testing became rev 2; architecture v3.1; prompt rev 3.
-7. Built code under rev 3, 8 commits, 88 tests green, 0 LLM tokens consumed.
+6. Independent **test review** (07 → 08). Resolved findings. Testing → rev 2; arch → v3.1; prompt → rev 3.
+7. Built code under rev 3 — 8 commits, 88 tests green, 0 LLM tokens consumed.
+8. Independent **code review** (09 → 10). Resolved 1 BLOCKER + 5 MAJOR + 7 MINOR + 1 NIT. Tests → 98 green (+ 2 regression tests for the BLOCKER fix, + 8 retry tests for AnthropicLlmClient, + 3 messy-fixture parser tests).
+9. Built and smoke-tested the shaded jar; added GitHub Actions CI; tightened README env-loading.
 
 ## Note on count
 

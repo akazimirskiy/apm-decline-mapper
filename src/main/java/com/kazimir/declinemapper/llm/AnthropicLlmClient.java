@@ -38,22 +38,37 @@ public final class AnthropicLlmClient implements LlmClient {
     /** Max number of response-body chars copied into the JSONL log (prevents log bloat). */
     public static final int LOG_BODY_MAX_CHARS = 8000;
 
-    private final HttpClient http;
+    /**
+     * Minimal HTTP-call seam for tests. Production wraps stdlib
+     * {@link HttpClient}; tests inject a function returning canned responses.
+     */
+    @FunctionalInterface
+    public interface HttpSender {
+        HttpResponse<String> send(HttpRequest request) throws IOException, InterruptedException;
+    }
+
+    private final HttpSender sender;
     private final String apiKey;
     private final String baseUrl;
     private final Path logFile;
     private final ObjectMapper json = new ObjectMapper();
 
     public AnthropicLlmClient(String apiKey, Path logFile) {
-        this(apiKey, DEFAULT_BASE_URL, logFile,
-                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).build());
+        this(apiKey, DEFAULT_BASE_URL, logFile, defaultSender());
     }
 
-    public AnthropicLlmClient(String apiKey, String baseUrl, Path logFile, HttpClient http) {
+    public AnthropicLlmClient(String apiKey, String baseUrl, Path logFile, HttpSender sender) {
         this.apiKey = apiKey;
         this.baseUrl = baseUrl;
         this.logFile = logFile;
-        this.http = http;
+        this.sender = sender;
+    }
+
+    private static HttpSender defaultSender() {
+        HttpClient http = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(20))
+                .build();
+        return req -> http.send(req, HttpResponse.BodyHandlers.ofString());
     }
 
     @Override
@@ -73,7 +88,7 @@ public final class AnthropicLlmClient implements LlmClient {
                         .POST(HttpRequest.BodyPublishers.ofString(payload, StandardCharsets.UTF_8))
                         .build();
 
-                HttpResponse<String> httpResp = http.send(httpReq, HttpResponse.BodyHandlers.ofString());
+                HttpResponse<String> httpResp = sender.send(httpReq);
                 int status = httpResp.statusCode();
                 String body = httpResp.body();
                 logJsonl(request, status, body, attempt);

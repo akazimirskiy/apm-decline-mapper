@@ -1,0 +1,29 @@
+MessyPay Gateway - error reference v0.9 (draft)
+
+Note: codes are documented inconsistently across departments. Engineering is aware.
+
+== Decline ==
+
+MP-100 "Card declined"
+    Acquirer declined for unspecified reason.
+
+MP-101 "Invalid PAN"
+    Card number failed validation.
+
+== auth ==
+
+MP-200 "Token mismatch"
+    The bearer token did not match the merchant on file. See section 4.2.
+
+== Transactions ==
+
+MP-300 "Duplicate transaction"
+    Same idempotency_key already processed. Possibly a replay attack — flag for review.
+
+== Customer ==
+
+MP-401 "User cancelled"
+    Customer pressed Cancel on the hosted page.
+
+MP-402 "Session ended"
+    Customer's session ended without completing payment.
