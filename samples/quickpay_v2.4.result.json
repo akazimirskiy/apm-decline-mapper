@@ -1,0 +1,249 @@
+{
+  "provider" : "QuickPay Global",
+  "version" : "2.4",
+  "mappings" : [ {
+    "provider_code" : "QP-002",
+    "provider_message" : "Insufficient balance",
+    "internal_category" : "COMMON_DECLINE",
+    "confidence" : "high",
+    "reasoning" : "Reasoning for QP-002: classified as COMMON_DECLINE.",
+    "retry_strategy" : "no_retry",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-003",
+    "provider_message" : "Card expired",
+    "internal_category" : "COMMON_DECLINE",
+    "confidence" : "high",
+    "reasoning" : "Reasoning for QP-003: classified as COMMON_DECLINE.",
+    "retry_strategy" : "no_retry",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-004",
+    "provider_message" : "Invalid card number",
+    "internal_category" : "BAD_DATA_PROVIDED",
+    "confidence" : "high",
+    "reasoning" : "Reasoning for QP-004: classified as BAD_DATA_PROVIDED.",
+    "retry_strategy" : "retry_after_fix",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-005",
+    "provider_message" : "Transaction not permitted",
+    "internal_category" : "COMMON_DECLINE",
+    "confidence" : "low",
+    "reasoning" : "Reasoning for QP-005: classified as COMMON_DECLINE.",
+    "retry_strategy" : "no_retry",
+    "needs_human_review" : true,
+    "review_reason" : "known_ambiguous_pattern: Could be antifraud, card restriction, or MCC issue."
+  }, {
+    "provider_code" : "QP-001",
+    "provider_message" : "Transaction declined",
+    "internal_category" : "COMMON_DECLINE",
+    "confidence" : "medium",
+    "reasoning" : "Reasoning for QP-001: classified as COMMON_DECLINE.",
+    "retry_strategy" : "no_retry",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-007",
+    "provider_message" : "3DS authentication failed",
+    "internal_category" : "COMMON_DECLINE",
+    "confidence" : "medium",
+    "reasoning" : "Reasoning for QP-007: classified as COMMON_DECLINE.",
+    "retry_strategy" : "no_retry",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-008",
+    "provider_message" : "Do not honor",
+    "internal_category" : "COMMON_DECLINE",
+    "confidence" : "low",
+    "reasoning" : "Reasoning for QP-008: classified as COMMON_DECLINE.",
+    "retry_strategy" : "no_retry",
+    "needs_human_review" : true,
+    "review_reason" : "known_ambiguous_pattern: Issuer catch-all — could be antifraud, limit, or generic decline."
+  }, {
+    "provider_code" : "QP-009",
+    "provider_message" : "Duplicate transaction",
+    "internal_category" : "COMMON_DECLINE",
+    "confidence" : "low",
+    "reasoning" : "Reasoning for QP-009: classified as COMMON_DECLINE.",
+    "retry_strategy" : "no_action",
+    "needs_human_review" : true,
+    "review_reason" : "known_ambiguous_pattern: Could be legitimate idempotency or replay attack."
+  }, {
+    "provider_code" : "QP-010",
+    "provider_message" : "Amount limit exceeded",
+    "internal_category" : "COMMON_DECLINE",
+    "confidence" : "high",
+    "reasoning" : "Reasoning for QP-010: classified as COMMON_DECLINE.",
+    "retry_strategy" : "no_retry",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-006",
+    "provider_message" : "Suspected fraud",
+    "internal_category" : "ANTIFRAUD",
+    "confidence" : "high",
+    "reasoning" : "Reasoning for QP-006: classified as ANTIFRAUD.",
+    "retry_strategy" : "no_retry",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-101",
+    "provider_message" : "Service temporarily unavailable",
+    "internal_category" : "SYSTEM_MALFUNCTION",
+    "confidence" : "high",
+    "reasoning" : "Reasoning for QP-101: classified as SYSTEM_MALFUNCTION.",
+    "retry_strategy" : "retry_with_backoff",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-102",
+    "provider_message" : "Request timeout",
+    "internal_category" : "SYSTEM_MALFUNCTION",
+    "confidence" : "high",
+    "reasoning" : "Reasoning for QP-102: classified as SYSTEM_MALFUNCTION.",
+    "retry_strategy" : "retry_with_backoff",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-103",
+    "provider_message" : "Rate limit exceeded",
+    "internal_category" : "PROVIDER_LIMIT",
+    "confidence" : "high",
+    "reasoning" : "Reasoning for QP-103: classified as PROVIDER_LIMIT.",
+    "retry_strategy" : "retry_with_backoff",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-200",
+    "provider_message" : "Missing required field: {field_name}",
+    "internal_category" : "BAD_DATA_PROVIDED",
+    "confidence" : "high",
+    "reasoning" : "Reasoning for QP-200: classified as BAD_DATA_PROVIDED.",
+    "retry_strategy" : "retry_after_fix",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-100",
+    "provider_message" : "Internal server error",
+    "internal_category" : "SYSTEM_MALFUNCTION",
+    "confidence" : "high",
+    "reasoning" : "Reasoning for QP-100: classified as SYSTEM_MALFUNCTION.",
+    "retry_strategy" : "retry_with_backoff",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-202",
+    "provider_message" : "Invalid amount format",
+    "internal_category" : "BAD_DATA_PROVIDED",
+    "confidence" : "high",
+    "reasoning" : "Reasoning for QP-202: classified as BAD_DATA_PROVIDED.",
+    "retry_strategy" : "retry_after_fix",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-203",
+    "provider_message" : "Unsupported payment method",
+    "internal_category" : "BAD_DATA_PROVIDED",
+    "confidence" : "medium",
+    "reasoning" : "Reasoning for QP-203: classified as BAD_DATA_PROVIDED.",
+    "retry_strategy" : "retry_after_fix",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-204",
+    "provider_message" : "Invalid callback URL",
+    "internal_category" : "BAD_DATA_PROVIDED",
+    "confidence" : "high",
+    "reasoning" : "Reasoning for QP-204: classified as BAD_DATA_PROVIDED.",
+    "retry_strategy" : "retry_after_fix",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-300",
+    "provider_message" : "Invalid API key",
+    "internal_category" : "AUTHENTICATION_FAILURE",
+    "confidence" : "high",
+    "reasoning" : "Reasoning for QP-300: classified as AUTHENTICATION_FAILURE.",
+    "retry_strategy" : "retry_after_fix",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-201",
+    "provider_message" : "Invalid currency code",
+    "internal_category" : "BAD_DATA_PROVIDED",
+    "confidence" : "high",
+    "reasoning" : "Reasoning for QP-201: classified as BAD_DATA_PROVIDED.",
+    "retry_strategy" : "retry_after_fix",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-302",
+    "provider_message" : "Token expired",
+    "internal_category" : "AUTHENTICATION_FAILURE",
+    "confidence" : "high",
+    "reasoning" : "Reasoning for QP-302: classified as AUTHENTICATION_FAILURE.",
+    "retry_strategy" : "retry_after_fix",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-303",
+    "provider_message" : "IP not whitelisted",
+    "internal_category" : "AUTHENTICATION_FAILURE",
+    "confidence" : "high",
+    "reasoning" : "Reasoning for QP-303: classified as AUTHENTICATION_FAILURE.",
+    "retry_strategy" : "retry_after_fix",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-400",
+    "provider_message" : "Payment cancelled by user",
+    "internal_category" : "CANCELLED_BY_CUSTOMER",
+    "confidence" : "high",
+    "reasoning" : "Reasoning for QP-400: classified as CANCELLED_BY_CUSTOMER.",
+    "retry_strategy" : "no_retry",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-401",
+    "provider_message" : "Session expired",
+    "internal_category" : "CANCELLED_BY_CUSTOMER",
+    "confidence" : "low",
+    "reasoning" : "Reasoning for QP-401: classified as CANCELLED_BY_CUSTOMER.",
+    "retry_strategy" : "no_retry",
+    "needs_human_review" : true,
+    "review_reason" : "known_ambiguous_pattern: Could be customer abandonment or system timeout."
+  }, {
+    "provider_code" : "QP-301",
+    "provider_message" : "Signature verification failed",
+    "internal_category" : "AUTHENTICATION_FAILURE",
+    "confidence" : "high",
+    "reasoning" : "Reasoning for QP-301: classified as AUTHENTICATION_FAILURE.",
+    "retry_strategy" : "retry_after_fix",
+    "needs_human_review" : false,
+    "review_reason" : null
+  }, {
+    "provider_code" : "QP-402",
+    "provider_message" : "Customer refused terms",
+    "internal_category" : "CANCELLED_BY_CUSTOMER",
+    "confidence" : "high",
+    "reasoning" : "Reasoning for QP-402: classified as CANCELLED_BY_CUSTOMER.",
+    "retry_strategy" : "no_retry",
+    "needs_human_review" : false,
+    "review_reason" : null
+  } ],
+  "summary" : {
+    "total_codes" : 26,
+    "mapped" : 26,
+    "high_confidence" : 19,
+    "needs_review" : 4,
+    "unmapped" : 0,
+    "budget_exhausted" : false,
+    "llm_calls" : 10,
+    "tokens_used" : 7000
+  }
+}

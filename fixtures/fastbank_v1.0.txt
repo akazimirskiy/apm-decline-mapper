@@ -1,0 +1,38 @@
+FastBank Payment Gateway - Error Codes (v1.0)
+
+All responses include an error_code field and an error_message field.
+
+== Decline Errors ==
+
+FB-001 "Insufficient funds"
+    The customer's available balance is below the transaction amount.
+
+FB-002 "do_not_honor"
+    Generic decline from issuing bank. Reason not specified.
+
+== System Errors ==
+
+05 "Pickup card"
+    Card flagged by issuer network; do not process further. error_code: 05
+
+ERR_RATE_LIMIT "API rate limit"
+    Too many requests in the last 60 seconds. Retry after the Retry-After header.
+
+== Validation ==
+
+FB-V01 "Currency not supported"
+    The supplied currency code is not on the merchant's enabled list.
+
+== Customer ==
+
+FB-C01 "User abandoned checkout"
+    Customer closed the payment window before submitting.
+
+FB-C02 "Duplicate charge attempt"
+    A charge with the same idempotency_key already exists. May indicate replay
+    attack or legitimate retry by the merchant.
+
+== Auth ==
+
+FB-A01 "Bearer token expired"
+    The OAuth access token used for this request is no longer valid.
