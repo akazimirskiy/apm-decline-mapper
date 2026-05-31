@@ -5,6 +5,7 @@ import com.kazimir.declinemapper.model.Confidence;
 import com.kazimir.declinemapper.model.Mapping;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -96,12 +97,28 @@ public final class Validator {
 
     // ---- V5 selection + merge ----
 
-    /** Returns the set of codes that should be re-validated single-code (V5). */
+    /**
+     * Returns the codes that should be re-validated single-code (V5), in deterministic
+     * (first-occurrence) order. {@code LinkedHashSet} is load-bearing here: when the
+     * budget is hit mid-V5, "which codes got refined" must be reproducible.
+     *
+     * <p>Excluded:
+     * <ul>
+     *   <li>V4-pinned codes — re-prompting cannot move them out of LOW
+     *       (the V4 flags are sticky in {@link #mergeRevalidation}); spending real
+     *       calls on them just starves genuinely-LOW codes of refinement slots.</li>
+     *   <li>Unmapped codes ({@code internalCategory == null}) — these came from
+     *       parse_garbage / budget / sanitizer_fatal / transport_error paths; the LLM
+     *       cannot fix them, so a re-call is wasted.</li>
+     * </ul>
+     */
     public Set<String> codesNeedingRevalidation(List<Mapping> mappings) {
         return mappings.stream()
                 .filter(m -> m.confidence() == Confidence.LOW)
+                .filter(m -> m.internalCategory() != null)
+                .filter(m -> !isV4Pinned(m))
                 .map(Mapping::providerCode)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     /**

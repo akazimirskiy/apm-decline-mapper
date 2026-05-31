@@ -2,7 +2,6 @@ package com.kazimir.declinemapper.stage;
 
 import com.kazimir.declinemapper.model.GarbageKind;
 import com.kazimir.declinemapper.model.ParseOutcome;
-import com.kazimir.declinemapper.model.ParsePath;
 import com.kazimir.declinemapper.model.ProviderError;
 
 import java.io.IOException;
@@ -41,11 +40,11 @@ import java.util.regex.Pattern;
  *         expected behaviour, but worth surfacing).</li>
  * </ol>
  *
- * <p>The {@link ParseOutcome.AmbiguousChunk} variant is reserved for chunks the
- * state machine can't extract cleanly (multi-paragraph descriptions, nested code
- * references). It is wired to an LLM fallback in Step 4; this class only emits it.
- *
  * <p>Warnings are stored in {@link #getWarnings()} for the caller to print to stderr.
+ *
+ * <p>An LLM-fallback path for chunks the state machine can't extract cleanly
+ * (multi-paragraph descriptions, nested code references) is deferred — see
+ * the trade-offs section in {@code README.md}.
  */
 public final class Parser {
 
@@ -75,9 +74,15 @@ public final class Parser {
     private static final Pattern ANCHOR_ANYWHERE = Pattern.compile(
             "[A-Za-z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+)+");
 
+    /** How far from a {@code code:}/{@code error:}/{@code result_code:} keyword a numeric code is still considered an anchor. */
+    public static final int ANCHOR_KEYWORD_RADIUS_CHARS = 30;
+
+    /** Max length of a description excerpt embedded into a {@code Garbage.detail} message. */
+    public static final int SNIPPET_MAX_CHARS = 80;
+
     /** Numeric anchor near a keyword (cross-check only). */
     private static final Pattern NUMERIC_NEAR_KEYWORD = Pattern.compile(
-            "(?i)(?:code|error|result_code)\\b[^\\n]{0,30}\\b(\\d{2,4})\\b");
+            "(?i)(?:code|error|result_code)\\b[^\\n]{0," + ANCHOR_KEYWORD_RADIUS_CHARS + "}\\b(\\d{2,4})\\b");
 
     private final List<String> warnings = new ArrayList<>();
 
@@ -276,9 +281,9 @@ public final class Parser {
                 for (RawBlock b : entries) {
                     String detail;
                     if (b.message == null) {
-                        detail = "no message; desc=\"" + truncate(b.description, 80) + "\"";
+                        detail = "no message; desc=\"" + truncate(b.description, SNIPPET_MAX_CHARS) + "\"";
                     } else {
-                        detail = "msg=\"" + b.message + "\"; desc=\"" + truncate(b.description, 80) + "\"";
+                        detail = "msg=\"" + b.message + "\"; desc=\"" + truncate(b.description, SNIPPET_MAX_CHARS) + "\"";
                     }
                     outcomes.add(new ParseOutcome.Garbage(
                             e.getKey(), GarbageKind.DUPLICATE_CONFLICT, detail));
@@ -292,7 +297,7 @@ public final class Parser {
         if (b.message == null) {
             String detail = b.description.isEmpty()
                     ? "code without quoted message"
-                    : "code without quoted message; trailing text: \"" + truncate(b.description, 80) + "\"";
+                    : "code without quoted message; trailing text: \"" + truncate(b.description, SNIPPET_MAX_CHARS) + "\"";
             return new ParseOutcome.Garbage(b.code, GarbageKind.NO_MESSAGE, detail);
         }
         if (b.description.length() > MAX_DESCRIPTION_CHARS) {
@@ -300,7 +305,7 @@ public final class Parser {
                     "description length=" + b.description.length() + " > " + MAX_DESCRIPTION_CHARS);
         }
         return new ParseOutcome.Ok(new ProviderError(
-                b.code, b.message, b.description, b.section, ParsePath.STATE_MACHINE));
+                b.code, b.message, b.description, b.section));
     }
 
     private static String truncate(String s, int max) {

@@ -10,8 +10,7 @@ public record Config(
         String llmModel,
         int maxLlmCalls,
         int maxTokensPerRun,
-        boolean cacheEnabled,
-        boolean recordMode
+        boolean cacheEnabled
 ) {
     public static final String DEFAULT_MODEL = "claude-sonnet-4-5";
     public static final int DEFAULT_MAX_LLM_CALLS = 40;

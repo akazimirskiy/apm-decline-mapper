@@ -2,7 +2,6 @@ package com.kazimir.declinemapper.unit;
 
 import com.kazimir.declinemapper.model.GarbageKind;
 import com.kazimir.declinemapper.model.ParseOutcome;
-import com.kazimir.declinemapper.model.ParsePath;
 import com.kazimir.declinemapper.model.ProviderError;
 import com.kazimir.declinemapper.stage.Parser;
 import org.junit.jupiter.api.Test;
@@ -36,11 +35,9 @@ class ParserTest {
         List<ParseOutcome> out = p.parseText(input);
 
         long okCount = out.stream().filter(o -> o instanceof ParseOutcome.Ok).count();
-        long ambigCount = out.stream().filter(o -> o instanceof ParseOutcome.AmbiguousChunk).count();
         long garbageCount = out.stream().filter(o -> o instanceof ParseOutcome.Garbage).count();
 
         assertThat(okCount).isEqualTo(26);
-        assertThat(ambigCount).as("no LLM fallback should be needed").isEqualTo(0);
         assertThat(garbageCount).isEqualTo(0);
 
         // Spot-check specific codes
@@ -49,12 +46,6 @@ class ParserTest {
                 .map(o -> ((ParseOutcome.Ok) o).error().code())
                 .collect(Collectors.toSet());
         assertThat(codes).contains("QP-001", "QP-008", "QP-009", "QP-103", "QP-200", "QP-401");
-
-        // Each Ok must carry the STATE_MACHINE parse path.
-        out.stream()
-                .filter(o -> o instanceof ParseOutcome.Ok)
-                .map(o -> ((ParseOutcome.Ok) o).error().parsePath())
-                .forEach(path -> assertThat(path).isEqualTo(ParsePath.STATE_MACHINE));
 
         // Sections are tracked correctly.
         ProviderError qp008 = ((ParseOutcome.Ok) out.stream()

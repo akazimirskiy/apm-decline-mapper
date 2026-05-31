@@ -55,12 +55,4 @@ public final class BudgetGuard {
     public int tokensUsed() {
         return tokens;
     }
-
-    public int maxCalls() {
-        return maxCalls;
-    }
-
-    public int maxTokens() {
-        return maxTokens;
-    }
 }

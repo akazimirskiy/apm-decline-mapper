@@ -33,7 +33,10 @@ public final class AnthropicLlmClient implements LlmClient {
 
     public static final String DEFAULT_BASE_URL = "https://api.anthropic.com/v1/messages";
     public static final String ANTHROPIC_VERSION = "2023-06-01";
-    private static final int MAX_ATTEMPTS = 3;
+    /** Maximum HTTP attempts (initial + 2 retries) on transient errors (429 / 5xx / timeout). */
+    public static final int MAX_ATTEMPTS = 3;
+    /** Max number of response-body chars copied into the JSONL log (prevents log bloat). */
+    public static final int LOG_BODY_MAX_CHARS = 8000;
 
     private final HttpClient http;
     private final String apiKey;
@@ -159,7 +162,7 @@ public final class AnthropicLlmClient implements LlmClient {
             entry.put("model", req.model());
             entry.put("codes", String.join(",", req.providerCodesInBatch()));
             entry.put("status", status);
-            entry.put("response_body", truncate(responseBody, 8000));
+            entry.put("response_body", truncate(responseBody, LOG_BODY_MAX_CHARS));
             Files.createDirectories(logFile.getParent());
             Files.write(logFile,
                     (json.writeValueAsString(entry) + "\n").getBytes(StandardCharsets.UTF_8),

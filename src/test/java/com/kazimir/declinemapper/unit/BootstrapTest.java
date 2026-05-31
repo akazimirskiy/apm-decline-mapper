@@ -39,7 +39,6 @@ class BootstrapTest {
         assertThat(r.config().maxLlmCalls()).isEqualTo(Config.DEFAULT_MAX_LLM_CALLS);
         assertThat(r.config().maxTokensPerRun()).isEqualTo(Config.DEFAULT_MAX_TOKENS_PER_RUN);
         assertThat(r.config().cacheEnabled()).isTrue();
-        assertThat(r.config().recordMode()).isFalse();
     }
 
     /** Test #49: empty ANTHROPIC_API_KEY → fail-fast before parsing input. */
@@ -102,13 +101,11 @@ class BootstrapTest {
         m.put("MAX_TOKENS_PER_RUN", "500000");
         m.put("LLM_MODEL", "claude-sonnet-4-5-custom");
         m.put("CACHE_ENABLED", "false");
-        m.put("RECORD_MODE", "true");
         Bootstrap.Result r = new Bootstrap(m::get, "/test_patterns/valid.yaml").run();
         assertThat(r.config().maxLlmCalls()).isEqualTo(100);
         assertThat(r.config().maxTokensPerRun()).isEqualTo(500_000);
         assertThat(r.config().llmModel()).isEqualTo("claude-sonnet-4-5-custom");
         assertThat(r.config().cacheEnabled()).isFalse();
-        assertThat(r.config().recordMode()).isTrue();
     }
 
     // ---------- Ambiguity patterns ----------

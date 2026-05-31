@@ -2,7 +2,6 @@ package com.kazimir.declinemapper.unit;
 
 import com.kazimir.declinemapper.llm.LlmResponse;
 import com.kazimir.declinemapper.model.Mapping;
-import com.kazimir.declinemapper.model.ParsePath;
 import com.kazimir.declinemapper.model.ProviderError;
 import com.kazimir.declinemapper.model.SanitizationResult;
 import com.kazimir.declinemapper.stage.ResponseSanitizer;
@@ -23,7 +22,7 @@ class ResponseSanitizerTest {
     // ---- helpers ----
 
     private static ProviderError pe(String code, String msg) {
-        return new ProviderError(code, msg, "desc-" + code, "section", ParsePath.STATE_MACHINE);
+        return new ProviderError(code, msg, "desc-" + code, "section");
     }
 
     private static Map<String, ProviderError> batch(String... codes) {

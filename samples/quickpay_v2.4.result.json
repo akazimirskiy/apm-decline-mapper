@@ -243,7 +243,7 @@
     "needs_review" : 4,
     "unmapped" : 0,
     "budget_exhausted" : false,
-    "llm_calls" : 10,
-    "tokens_used" : 7000
+    "llm_calls" : 6,
+    "tokens_used" : 4200
   }
 }

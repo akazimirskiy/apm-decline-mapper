@@ -3,7 +3,6 @@ package com.kazimir.declinemapper.component;
 import com.kazimir.declinemapper.fakes.ScriptedLlmClient;
 import com.kazimir.declinemapper.llm.LlmRequest;
 import com.kazimir.declinemapper.llm.LlmResponse;
-import com.kazimir.declinemapper.model.ParsePath;
 import com.kazimir.declinemapper.model.ProviderError;
 import com.kazimir.declinemapper.stage.Enricher;
 import com.kazimir.declinemapper.stage.LlmMapper;
@@ -26,7 +25,7 @@ class LlmMapperTest {
     // ---- helpers ----
 
     private static ProviderError pe(String code) {
-        return new ProviderError(code, "msg-" + code, "desc-" + code, "section", ParsePath.STATE_MACHINE);
+        return new ProviderError(code, "msg-" + code, "desc-" + code, "section");
     }
 
     private static List<ProviderError> codes(String... codes) {

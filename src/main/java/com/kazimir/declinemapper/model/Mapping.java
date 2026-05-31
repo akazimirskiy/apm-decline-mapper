@@ -27,10 +27,4 @@ public record Mapping(
         return new Mapping(providerCode, providerMessage, internalCategory, newConf,
                 reasoning, retryStrategy, review, reviewReason);
     }
-
-    /** Convenience: produce a copy with updated reasoning (V5 re-validation refines, doesn't replace). */
-    public Mapping withReasoning(String newReasoning) {
-        return new Mapping(providerCode, providerMessage, internalCategory, confidence,
-                newReasoning, retryStrategy, needsHumanReview, reviewReason);
-    }
 }

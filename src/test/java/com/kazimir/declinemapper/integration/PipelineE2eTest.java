@@ -58,7 +58,7 @@ class PipelineE2eTest {
     }
 
     private static Bootstrap.Result bootstrap() {
-        Config cfg = new Config("sk-test", "claude-sonnet-4-5", 100, 1_000_000, true, false);
+        Config cfg = new Config("sk-test", "claude-sonnet-4-5", 100, 1_000_000, true);
         return new Bootstrap.Result(cfg, productionPatterns());
     }
 

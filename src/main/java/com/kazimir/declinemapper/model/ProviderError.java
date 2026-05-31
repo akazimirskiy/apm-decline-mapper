@@ -7,13 +7,11 @@ package com.kazimir.declinemapper.model;
  * @param message     the quoted message, e.g. {@code "Transaction declined"}
  * @param description multi-line description text, normalized (single LF, trimmed)
  * @param section     section header the code lived under, or empty if none
- * @param parsePath   {@link ParsePath#STATE_MACHINE} or {@link ParsePath#LLM_FALLBACK}
  */
 public record ProviderError(
         String code,
         String message,
         String description,
-        String section,
-        ParsePath parsePath
+        String section
 ) {
 }

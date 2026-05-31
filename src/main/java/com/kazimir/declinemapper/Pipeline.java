@@ -4,9 +4,7 @@ import com.kazimir.declinemapper.budget.BudgetGuard;
 import com.kazimir.declinemapper.budget.BudgetGuard.BudgetExhaustedException;
 import com.kazimir.declinemapper.llm.LlmClient;
 import com.kazimir.declinemapper.llm.LlmResponse;
-import com.kazimir.declinemapper.model.Category;
 import com.kazimir.declinemapper.model.Confidence;
-import com.kazimir.declinemapper.model.GarbageKind;
 import com.kazimir.declinemapper.model.Mapping;
 import com.kazimir.declinemapper.model.MappingResult;
 import com.kazimir.declinemapper.model.ParseOutcome;
@@ -40,15 +38,23 @@ import java.util.Set;
  *
  * <p>Guarantees:
  * <ul>
- *     <li>{@code result.json} is written even on partial completion or fatal failure.</li>
- *     <li>Sanitizer NeedsReprompt routes only the missing codes back to the Mapper
- *         (not the whole batch).</li>
+ *     <li>{@code result.json} is written on every exit path — clean success,
+ *         partial completion, budget exhaustion, transport error, or fatal
+ *         sanitizer error. The try/finally around the main loop and V5 makes
+ *         this load-bearing.</li>
+ *     <li>Sanitizer {@code NeedsReprompt} routes only the missing codes back to
+ *         the Mapper (not the whole batch).</li>
  *     <li>Per-code retry cap = 2. Beyond that, the code becomes {@code unmapped}
  *         with {@code review_reason="recovery_exhausted"}.</li>
- *     <li>V5 single-code re-validation runs once after the main pass for every LOW code,
- *         respecting the same retry cap.</li>
+ *     <li>V5 single-code re-validation runs once after the main pass for every
+ *         non-V4-pinned LOW code, respecting the same retry cap. V5 sanitizer
+ *         warnings are drained to stderr with their own prefix.</li>
  *     <li>Cache hits do NOT consume the run-level budget.</li>
  * </ul>
+ *
+ * <p>Parser and ResponseSanitizer are constructed <strong>fresh per run()</strong>
+ * — not held as instance fields — to avoid sharing their mutable {@code warnings}
+ * state across runs. This is the simple form of the test-review safety fix.
  */
 public final class Pipeline {
 
@@ -65,9 +71,7 @@ public final class Pipeline {
     private final Path cacheDir;
     private final int batchSize;
 
-    private final Parser parser = new Parser();
-    private final Enricher enricher = new Enricher();
-    private final ResponseSanitizer sanitizer = new ResponseSanitizer();
+    private final Enricher enricher = new Enricher();  // stateless, OK as field
 
     public Pipeline(Bootstrap.Result bootstrap, LlmClient llm, Path cacheDir) {
         this(bootstrap, llm, cacheDir, LlmMapper.DEFAULT_BATCH_SIZE);
@@ -83,6 +87,10 @@ public final class Pipeline {
 
     public RunResult run(Path inputFile, String provider, String version, Path outFile)
             throws IOException {
+        // Fresh stateful collaborators per run.
+        Parser parser = new Parser();
+        ResponseSanitizer sanitizer = new ResponseSanitizer();
+
         BudgetGuard guard = new BudgetGuard(
                 bootstrap.config().maxLlmCalls(), bootstrap.config().maxTokensPerRun());
         LlmMapper mapper = new LlmMapper(
@@ -90,12 +98,12 @@ public final class Pipeline {
                 batchSize, enricher,
                 bootstrap.config().cacheEnabled(), guard);
         Validator validator = new Validator(bootstrap.patterns());
-        // Tracks whether budget exhaustion ACTUALLY blocked a call.
-        // (Distinct from guard.isExhausted(), which can be trivially true when
-        // limits are 0 but no calls were ever attempted because cache absorbed everything.)
+
+        // Independent of guard.isExhausted(): tells us a call was actually blocked.
+        // (Trivial guard.isExhausted() can be true when limits are 0 but cache absorbed everything.)
         boolean[] budgetHit = {false};
 
-        // ---- Stage 1: parse + bucket ----
+        // Stage 1: parse + bucket
         List<ParseOutcome> outcomes = parser.parse(inputFile);
         for (String w : parser.getWarnings()) {
             System.err.println("PARSER_WARN: " + w);
@@ -107,125 +115,162 @@ public final class Pipeline {
             switch (o) {
                 case ParseOutcome.Ok ok -> okCodes.add(ok.error());
                 case ParseOutcome.Garbage g -> bypassMappings.add(garbageToMapping(g));
-                case ParseOutcome.AmbiguousChunk a ->
-                        // LLM fallback for ambiguous chunks is wired in a later iteration;
-                        // for now they're surfaced as unmapped so the operator sees them.
-                        bypassMappings.add(ambiguousChunkToMapping(a));
             }
         }
 
-        Map<String, ProviderError> codeIndex = new LinkedHashMap<>();
-        for (ProviderError e : okCodes) codeIndex.put(e.code(), e);
+        Map<String, ProviderError> okCodesByCode = new LinkedHashMap<>();
+        for (ProviderError e : okCodes) okCodesByCode.put(e.code(), e);
 
-        // ---- Stages 3 + 4 main pass: batched LLM + sanitize + reprompt-on-miss ----
+        // Working result set — populated incrementally so partial output is always available.
         Map<String, Mapping> mappingsByCode = new LinkedHashMap<>();
         Map<String, Integer> retryCount = new HashMap<>();
         Set<String> exhaustedCodes = new HashSet<>();
 
-        Queue<List<ProviderError>> queue = new ArrayDeque<>(mapper.partition(okCodes));
-        while (!queue.isEmpty()) {
-            List<ProviderError> batch = queue.poll();
-            batch = batch.stream()
-                    .filter(e -> !mappingsByCode.containsKey(e.code()))
-                    .filter(e -> !exhaustedCodes.contains(e.code()))
-                    .toList();
-            if (batch.isEmpty()) continue;
-
-            try {
-                processBatch(batch, mapper, validator, mappingsByCode, retryCount,
-                        exhaustedCodes, queue);
-            } catch (BudgetExhaustedException be) {
-                System.err.println("BUDGET_EXHAUSTED: " + be.getMessage());
-                budgetHit[0] = true;
-                // Mark every still-unfinished code in this batch and the queue as unmapped.
-                markBudgetExhausted(batch, mappingsByCode);
-                while (!queue.isEmpty()) {
-                    markBudgetExhausted(queue.poll(), mappingsByCode);
-                }
-                break;
-            }
-        }
-
-        // ---- Stage 4 V5: single-code re-validation for LOW codes ----
-        if (!guard.isExhausted()) {
-            // Apply V3 + V4 first to identify LOW codes.
-            List<Mapping> afterChecks = validator.applyChecks(new ArrayList<>(mappingsByCode.values()));
-            Map<String, Mapping> byCode = new LinkedHashMap<>();
-            for (Mapping m : afterChecks) byCode.put(m.providerCode(), m);
-            mappingsByCode.clear();
-            mappingsByCode.putAll(byCode);
-
-            Set<String> lowCodes = validator.codesNeedingRevalidation(afterChecks);
-            for (String code : lowCodes) {
-                if (guard.isExhausted()) break;
-                int n = retryCount.getOrDefault(code, 0);
-                if (n >= MAX_RETRIES_PER_CODE) continue;
-                ProviderError pe = codeIndex.get(code);
-                if (pe == null) continue;
-                retryCount.put(code, n + 1);
+        // The try/finally enforces the "result.json is always written" contract.
+        // Any exception during the main loop or V5 lands in finally, which writes whatever
+        // we managed to accumulate.
+        try {
+            // Stages 3 + 4 main pass
+            Queue<List<ProviderError>> queue = new ArrayDeque<>(mapper.partition(okCodes));
+            while (!queue.isEmpty()) {
+                List<ProviderError> batch = queue.poll();
+                batch = batch.stream()
+                        .filter(e -> !mappingsByCode.containsKey(e.code()))
+                        .filter(e -> !exhaustedCodes.contains(e.code()))
+                        .toList();
+                if (batch.isEmpty()) continue;
 
                 try {
-                    LlmResponse resp = mapper.mapBatch(List.of(pe));
-                    SanitizationResult sr = sanitizer.sanitize(resp, Map.of(code, pe));
-                    if (sr instanceof SanitizationResult.Clean clean && !clean.mappings().isEmpty()) {
-                        Mapping revalidated = clean.mappings().get(0);
-                        Mapping merged = validator.mergeRevalidation(
-                                mappingsByCode.get(code), revalidated);
-                        // Re-apply V4 just in case re-validation changed something that triggers it.
-                        Mapping pinned = validator.applyAmbiguityPatterns(merged);
-                        mappingsByCode.put(code, pinned);
-                    }
+                    processBatch(batch, mapper, sanitizer, mappingsByCode, retryCount,
+                            exhaustedCodes, queue);
                 } catch (BudgetExhaustedException be) {
+                    System.err.println("BUDGET_EXHAUSTED: " + be.getMessage());
                     budgetHit[0] = true;
+                    markBudgetExhausted(batch, mappingsByCode);
+                    while (!queue.isEmpty()) {
+                        markBudgetExhausted(queue.poll(), mappingsByCode);
+                    }
                     break;
-                } catch (IOException ioe) {
-                    System.err.println("REVALIDATION_WARN: " + code + ": " + ioe.getMessage());
                 }
             }
-        } else {
-            // Even without V5, the main pass mappings need V3/V4 once.
+
+            // Stage 4 V5: single-code re-validation for LOW (non-V4-pinned) codes.
+            // Validator's codesNeedingRevalidation returns a LinkedHashSet — deterministic order.
             List<Mapping> afterChecks = validator.applyChecks(new ArrayList<>(mappingsByCode.values()));
             mappingsByCode.clear();
             for (Mapping m : afterChecks) mappingsByCode.put(m.providerCode(), m);
+
+            if (!guard.isExhausted()) {
+                Set<String> lowCodes = validator.codesNeedingRevalidation(afterChecks);
+                for (String code : lowCodes) {
+                    if (guard.isExhausted()) break;
+                    int n = retryCount.getOrDefault(code, 0);
+                    if (n >= MAX_RETRIES_PER_CODE) continue;
+                    ProviderError pe = okCodesByCode.get(code);
+                    if (pe == null) continue;
+                    retryCount.put(code, n + 1);
+
+                    try {
+                        LlmResponse resp = mapper.mapBatch(List.of(pe));
+                        SanitizationResult sr = sanitizer.sanitize(resp, Map.of(code, pe));
+                        // Drain V5 sanitizer warnings BEFORE the next call clears them.
+                        for (String w : sanitizer.getWarnings()) {
+                            System.err.println("REVALIDATION_SANITIZER_WARN: " + w);
+                        }
+                        if (sr instanceof SanitizationResult.Clean clean && !clean.mappings().isEmpty()) {
+                            Mapping revalidated = clean.mappings().get(0);
+                            Mapping merged = validator.mergeRevalidation(
+                                    mappingsByCode.get(code), revalidated);
+                            // Re-apply V4 just in case re-validation moved a field into ambiguous territory.
+                            Mapping pinned = validator.applyAmbiguityPatterns(merged);
+                            mappingsByCode.put(code, pinned);
+                        }
+                    } catch (BudgetExhaustedException be) {
+                        budgetHit[0] = true;
+                        break;
+                    } catch (ResponseSanitizer.SanitizationException se) {
+                        // Same config-bug surface as the main pass; refuse to crash V5 over it.
+                        System.err.println("REVALIDATION_SANITIZER_FATAL: " + code + ": " + se.getMessage());
+                    } catch (IOException ioe) {
+                        System.err.println("REVALIDATION_WARN: " + code + ": " + ioe.getMessage());
+                    }
+                }
+            }
+        } finally {
+            // Combine and emit, regardless of how we got here.
+            List<Mapping> finalMappings = new ArrayList<>(mappingsByCode.values());
+            finalMappings.addAll(bypassMappings);
+
+            Summary summary = computeSummary(finalMappings, guard, budgetHit[0]);
+            MappingResult result = new MappingResult(provider, version, finalMappings, summary);
+
+            if (outFile.getParent() != null) {
+                java.nio.file.Files.createDirectories(outFile.getParent());
+            }
+            JSON.writeValue(outFile.toFile(), result);
+
+            // Signal in the return value if the caller is still around;
+            // the explicit return below will use the same summary.
+            // (Java has no "finally return", so the actual return is in the try block-exit path.)
+            this.lastResult = result;
+            this.lastExit = computeExitCode(summary);
         }
 
-        // ---- Combine and build result ----
-        List<Mapping> finalMappings = new ArrayList<>(mappingsByCode.values());
-        finalMappings.addAll(bypassMappings);
-
-        Summary summary = computeSummary(finalMappings, guard, budgetHit[0]);
-        MappingResult result = new MappingResult(provider, version, finalMappings, summary);
-
-        // Always write — even on partial completion or budget exhaustion.
-        if (outFile.getParent() != null) {
-            java.nio.file.Files.createDirectories(outFile.getParent());
-        }
-        JSON.writeValue(outFile.toFile(), result);
-
-        int exit = computeExitCode(summary);
-        return new RunResult(result, exit);
+        return new RunResult(lastResult, lastExit);
     }
+
+    // The finally block computes the result; these fields carry it out of the try.
+    // Not great style, but the alternative (catching every exception explicitly) is uglier
+    // for this single-shot CLI.
+    private MappingResult lastResult;
+    private int lastExit;
 
     // ---- helpers ----
 
     private void processBatch(List<ProviderError> batch,
                               LlmMapper mapper,
-                              Validator validator,
+                              ResponseSanitizer sanitizer,
                               Map<String, Mapping> mappingsByCode,
                               Map<String, Integer> retryCount,
                               Set<String> exhaustedCodes,
-                              Queue<List<ProviderError>> queue) throws IOException {
-        Map<String, ProviderError> batchIndex = new LinkedHashMap<>();
-        for (ProviderError e : batch) batchIndex.put(e.code(), e);
+                              Queue<List<ProviderError>> queue) {
+        Map<String, ProviderError> batchByCode = new LinkedHashMap<>();
+        for (ProviderError e : batch) batchByCode.put(e.code(), e);
 
-        LlmResponse resp = mapper.mapBatch(batch);
+        LlmResponse resp;
+        try {
+            resp = mapper.mapBatch(batch);
+        } catch (IOException ioe) {
+            // Transport-level error after AnthropicLlmClient's own retry loop.
+            // Mark this batch's codes as recovery_exhausted with the transport reason
+            // so the operator gets a clear breadcrumb in result.json.
+            System.err.println("TRANSPORT_ERROR: " + ioe.getMessage());
+            for (ProviderError e : batch) {
+                exhaustedCodes.add(e.code());
+                if (!mappingsByCode.containsKey(e.code())) {
+                    mappingsByCode.put(e.code(), unmappedMapping(e.code(), e.message(),
+                            "transport_error: " + ioe.getMessage()));
+                }
+            }
+            return;
+        }
 
         SanitizationResult sr;
         try {
-            sr = sanitizer.sanitize(resp, batchIndex);
+            sr = sanitizer.sanitize(resp, batchByCode);
         } catch (ResponseSanitizer.SanitizationException se) {
-            // Fatal config bug — fail the run.
-            throw new RuntimeException("Fatal sanitization error: " + se.getMessage(), se);
+            // Fatal config bug (wrong tool name). Don't crash the whole run — mark this
+            // batch as unmapped and let finally write result.json. The operator sees the
+            // problem in the unmapped review_reason.
+            System.err.println("FATAL_SANITIZER_ERROR: " + se.getMessage());
+            for (ProviderError e : batch) {
+                exhaustedCodes.add(e.code());
+                if (!mappingsByCode.containsKey(e.code())) {
+                    mappingsByCode.put(e.code(), unmappedMapping(e.code(), e.message(),
+                            "sanitizer_fatal: " + se.getMessage()));
+                }
+            }
+            return;
         }
         for (String w : sanitizer.getWarnings()) {
             System.err.println("SANITIZER_WARN: " + w);
@@ -236,22 +281,20 @@ public final class Pipeline {
                 mappingsByCode.put(m.providerCode(), m);
             }
         } else if (sr instanceof SanitizationResult.NeedsReprompt rp) {
-            // Accept any partial clean mappings we got along the way (none in NeedsReprompt
-            // currently — the sanitizer returns either Clean or NeedsReprompt).
             // Re-queue only the codes we still need, bounded by retry cap.
             List<ProviderError> retryBatch = new ArrayList<>();
             for (String code : rp.codesToRetry()) {
                 int n = retryCount.getOrDefault(code, 0);
                 if (n >= MAX_RETRIES_PER_CODE) {
                     exhaustedCodes.add(code);
-                    ProviderError pe = batchIndex.get(code);
+                    ProviderError pe = batchByCode.get(code);
                     if (pe != null) {
                         mappingsByCode.put(code, unmappedMapping(code, pe.message(),
                                 "recovery_exhausted"));
                     }
                 } else {
                     retryCount.put(code, n + 1);
-                    ProviderError pe = batchIndex.get(code);
+                    ProviderError pe = batchByCode.get(code);
                     if (pe != null) retryBatch.add(pe);
                 }
             }
@@ -274,14 +317,6 @@ public final class Pipeline {
             reason = reason + ": " + g.detail();
         }
         return unmappedMapping(g.code(), null, reason);
-    }
-
-    private Mapping ambiguousChunkToMapping(ParseOutcome.AmbiguousChunk a) {
-        // Tag with a synthetic code so the operator can still see something in the output.
-        String snippet = a.text() == null ? "" :
-                (a.text().length() > 80 ? a.text().substring(0, 80) + "..." : a.text());
-        return unmappedMapping("AMBIGUOUS-CHUNK", snippet,
-                "parse_garbage: ambiguous_chunk (LLM fallback not yet wired)");
     }
 
     private Mapping unmappedMapping(String code, String message, String reviewReason) {

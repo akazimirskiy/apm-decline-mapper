@@ -37,7 +37,7 @@ class BudgetGuardTest {
     /** Build a Bootstrap.Result with custom budget ceilings; everything else default. */
     private static Bootstrap.Result bootstrapWith(int maxCalls, int maxTokens, boolean cacheEnabled) {
         Config cfg = new Config("sk-test", "claude-sonnet-4-5",
-                maxCalls, maxTokens, cacheEnabled, false);
+                maxCalls, maxTokens, cacheEnabled);
         return new Bootstrap.Result(cfg, productionPatterns());
     }
 

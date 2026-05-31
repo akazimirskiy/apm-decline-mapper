@@ -7,7 +7,6 @@ import org.yaml.snakeyaml.Yaml;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -96,9 +95,8 @@ public final class Bootstrap {
         int maxTokens = parsePositiveInt("MAX_TOKENS_PER_RUN", env.apply("MAX_TOKENS_PER_RUN"),
                 Config.DEFAULT_MAX_TOKENS_PER_RUN);
         boolean cacheEnabled = parseBoolean(env.apply("CACHE_ENABLED"), true);
-        boolean recordMode = parseBoolean(env.apply("RECORD_MODE"), false);
 
-        return new Config(apiKey, model, maxCalls, maxTokens, cacheEnabled, recordMode);
+        return new Config(apiKey, model, maxCalls, maxTokens, cacheEnabled);
     }
 
     private static int parsePositiveInt(String name, String raw, int defaultValue) {
@@ -127,7 +125,6 @@ public final class Bootstrap {
 
     // ---- Ambiguity patterns ----
 
-    @SuppressWarnings("unchecked")
     private List<AmbiguityPattern> loadAmbiguityPatterns() {
         try (InputStream in = Bootstrap.class.getResourceAsStream(ambiguityPatternsResource)) {
             if (in == null) {
@@ -163,8 +160,8 @@ public final class Bootstrap {
                     compileErrors.add("[" + i + "] entry is not a mapping");
                     continue;
                 }
-                Object matchObj = ((LinkedHashMap<String, Object>) map).get("match");
-                Object reasonObj = ((LinkedHashMap<String, Object>) map).get("reason");
+                Object matchObj = map.get("match");
+                Object reasonObj = map.get("reason");
                 String matchStr = matchObj == null ? null : matchObj.toString();
                 String reason = reasonObj == null ? "" : reasonObj.toString();
 
