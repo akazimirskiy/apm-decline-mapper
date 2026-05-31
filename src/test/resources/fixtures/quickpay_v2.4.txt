@@ -1,0 +1,91 @@
+QuickPay Global - API Error Reference (v2.4)
+
+All API responses include a result_code field (string) and a message field (human-readable).
+
+=== Transaction Processing Errors ===
+
+QP-001 "Transaction declined"
+    The acquiring bank declined the transaction. No further details available.
+
+QP-002 "Insufficient balance"
+    The customer's account does not have enough funds.
+
+QP-003 "Card expired"
+    The payment card has passed its expiry date.
+
+QP-004 "Invalid card number"
+    The card number failed Luhn check or is not recognized by the network.
+
+QP-005 "Transaction not permitted"
+    The card issuer does not allow this type of transaction.
+
+QP-006 "Suspected fraud"
+    The transaction was flagged by the fraud detection system.
+
+QP-007 "3DS authentication failed"
+    The cardholder failed 3-D Secure verification.
+
+QP-008 "Do not honor"
+    The issuing bank declined without specifying a reason.
+
+QP-009 "Duplicate transaction"
+    A transaction with the same idempotency key was already processed.
+
+QP-010 "Amount limit exceeded"
+    The transaction exceeds the per-transaction or daily limit.
+
+=== System / Connectivity Errors ===
+
+QP-100 "Internal server error"
+    An unexpected error occurred on QuickPay side.
+
+QP-101 "Service temporarily unavailable"
+    The payment gateway is undergoing maintenance or experiencing high load.
+
+QP-102 "Request timeout"
+    The upstream processor did not respond in time.
+
+QP-103 "Rate limit exceeded"
+    Too many API requests in the current time window. Retry after the period indicated in the Retry-After header.
+
+=== Validation Errors ===
+
+QP-200 "Missing required field: {field_name}"
+    A mandatory request field is missing.
+
+QP-201 "Invalid currency code"
+    The provided currency is not supported or not in ISO 4217 format.
+
+QP-202 "Invalid amount format"
+    Amount must be a positive number with up to 2 decimal places.
+
+QP-203 "Unsupported payment method"
+    The requested payment method is not enabled for this merchant.
+
+QP-204 "Invalid callback URL"
+    The provided notification URL is malformed or unreachable.
+
+=== Authentication Errors ===
+
+QP-300 "Invalid API key"
+    The provided API key does not match any active merchant account.
+
+QP-301 "Signature verification failed"
+    The request signature (X-Sign header) does not match the computed value.
+
+QP-302 "Token expired"
+    The OAuth bearer token has expired. Obtain a new token.
+
+QP-303 "IP not whitelisted"
+    The request originated from an IP address not in the merchant's whitelist.
+
+=== Customer Action Errors ===
+
+QP-400 "Payment cancelled by user"
+    The customer clicked Cancel on the hosted payment page.
+
+QP-401 "Session expired"
+    The customer did not complete the payment within the allowed time window.
+
+QP-402 "Customer refused terms"
+    The customer declined the terms and conditions on the payment page.
