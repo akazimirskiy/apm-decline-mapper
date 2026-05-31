@@ -15,6 +15,7 @@ Self-contained trail of how the implementation was reasoned out â€” assignment â
 | 08 | [`08_test_review_findings.md`](./08_test_review_findings.md) | Findings of the test review + adoption table. |
 | 09 | [`09_code_review_prompt.md`](./09_code_review_prompt.md) | Reusable prompt for a hard post-implementation code review. |
 | 10 | [`10_code_review_findings.md`](./10_code_review_findings.md) | Findings of the code review + adoption table. |
+| 11 | [`11_work_log.md`](./11_work_log.md) | Chronological log of every step actually executed across all phases. |
 
 ## Workflow that produced these
 
