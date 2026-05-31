@@ -22,6 +22,8 @@ The LLM must be used as a **controlled component inside an agent pipeline**, not
 - **JUnit 5** + **AssertJ** for tests.
 - **No** Picocli, Lombok, DI containers, logging framework. `String[] args` + `System.getenv` + `System.out` are enough.
 
+**Base package**: `com.kazimir.declinemapper`. All file paths below use this prefix; replace with your organization's namespace if reusing this prompt for a different repo. The Maven `groupId` in `pom.xml` should match the prefix without the artifact segment (e.g., `com.kazimir`).
+
 ## Internal taxonomy (closed set, 7 categories)
 
 | Category | Meaning | Retryable? |
@@ -393,7 +395,7 @@ apm-decline-mapper/
 ├── .env.example
 ├── .gitignore
 ├── pom.xml
-├── src/main/java/com/bp/declinemapper/
+├── src/main/java/com/kazimir/declinemapper/
 │   ├── Main.java                            String[] args entry; calls Bootstrap, Pipeline
 │   ├── Bootstrap.java                       env + YAML + regex validation
 │   ├── Pipeline.java                        wires 4 stages + budget guard
@@ -426,7 +428,7 @@ apm-decline-mapper/
 │   │   └── mapper-system.md
 │   ├── taxonomy.md
 │   └── ambiguity_patterns.yaml
-├── src/test/java/com/bp/declinemapper/
+├── src/test/java/com/kazimir/declinemapper/
 │   ├── unit/                                ~43 tests
 │   ├── component/                           ~22 tests
 │   ├── integration/                         3 tests
