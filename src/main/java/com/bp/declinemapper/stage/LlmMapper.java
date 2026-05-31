@@ -1,5 +1,7 @@
 package com.bp.declinemapper.stage;
 
+import com.bp.declinemapper.budget.BudgetGuard;
+import com.bp.declinemapper.budget.BudgetGuard.BudgetExhaustedException;
 import com.bp.declinemapper.llm.LlmClient;
 import com.bp.declinemapper.llm.LlmRequest;
 import com.bp.declinemapper.llm.LlmResponse;
@@ -53,13 +55,26 @@ public final class LlmMapper {
     private final int batchSize;
     private final Enricher enricher;
     private final boolean cacheEnabled;
+    private final BudgetGuard guard;  // optional — null means no enforcement
 
+    /** Constructor without budget enforcement — used by unit/component tests of the mapper itself. */
     public LlmMapper(LlmClient client,
                      Path cacheDir,
                      String model,
                      int batchSize,
                      Enricher enricher,
                      boolean cacheEnabled) {
+        this(client, cacheDir, model, batchSize, enricher, cacheEnabled, null);
+    }
+
+    /** Production constructor — pass a BudgetGuard to enforce the run-level ceiling. */
+    public LlmMapper(LlmClient client,
+                     Path cacheDir,
+                     String model,
+                     int batchSize,
+                     Enricher enricher,
+                     boolean cacheEnabled,
+                     BudgetGuard guard) {
         if (cacheDir == null) {
             throw new IllegalArgumentException("cacheDir is mandatory — pass @TempDir in tests");
         }
@@ -72,6 +87,7 @@ public final class LlmMapper {
         this.batchSize = batchSize;
         this.enricher = enricher;
         this.cacheEnabled = cacheEnabled;
+        this.guard = guard;
     }
 
     /** Partition a list of codes into batches of at most {@link #batchSize}. */
@@ -92,7 +108,7 @@ public final class LlmMapper {
         return all;
     }
 
-    /** Process a single batch — cache check, shuffle, LLM call, cache write. */
+    /** Process a single batch — cache check, budget check, shuffle, LLM call, cache write. */
     public LlmResponse mapBatch(List<ProviderError> batch) throws IOException {
         if (batch.isEmpty()) {
             throw new IllegalArgumentException("cannot map an empty batch");
@@ -101,8 +117,16 @@ public final class LlmMapper {
         String cacheKey = computeCacheKey(batch);
         Path cacheFile = cacheDir.resolve(cacheKey + ".json");
 
+        // Cache hit short-circuits BEFORE consulting the budget — cache hits are free.
         if (cacheEnabled && Files.exists(cacheFile)) {
             return JSON.readValue(cacheFile.toFile(), LlmResponse.class);
+        }
+
+        // Cache miss: only proceed if the budget allows.
+        if (guard != null && guard.isExhausted()) {
+            throw new BudgetExhaustedException(
+                    "LLM call budget exhausted (calls=" + guard.callCount()
+                            + ", tokens=" + guard.tokensUsed() + ")");
         }
 
         // Shuffle within batch with a fresh Random — deterministic and thread-safe.
@@ -111,6 +135,11 @@ public final class LlmMapper {
 
         LlmRequest request = buildRequest(shuffled);
         LlmResponse response = client.call(request);
+
+        // Record budget AFTER the call so we count what we actually billed.
+        if (guard != null) {
+            guard.recordCall(response.tokensIn(), response.tokensOut());
+        }
 
         if (cacheEnabled) {
             Files.createDirectories(cacheDir);
