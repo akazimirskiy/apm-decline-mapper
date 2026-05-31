@@ -50,6 +50,40 @@ Chronological list of steps actually executed on this project, from reading the 
 30. **Step 14** — README hygiene: replaced `cat .env | xargs` with `set -a; source .env; set +a`; added disclaimer that `samples/quickpay_v2.4.result.json` has synthetic reasoning text.
 31. **Step 15** — Added a **Pre-submission workflow (W1–W9)** section to the implementation prompt so the post-build discipline is reusable as a template for future projects.
 
+## Evaluator pass
+
+32. Wrote the **evaluator review prompt** (`docs/12_evaluator_review_prompt.md`) — reusable template for grading a take-home submission against its assignment. Different lens from the three internal reviews: asks "did we meet the contract?" instead of "what would we ship?".
+33. Ran a self-evaluation pass against the prompt (without spinning up a separate agent, to save tokens — full result captured below).
+
+### Self-evaluation result
+
+**Verdict**: STRONG_PASS. All 18 mandate items met.
+
+| Axis | Score |
+|---|---|
+| Functional correctness | 9/10 |
+| Agent staging | 9/10 |
+| LLM failure handling | 9/10 |
+| Code readability | 8/10 |
+| Testing rigour | 9/10 |
+| README completeness | 8/10 |
+| Honesty about scope | 9/10 |
+
+**Mandate compliance**: 18/18 items met (parses to tuples; 7-category taxonomy; high/medium/low confidence; reasoning per code; ambiguity flagging with explanation; 4-value retry vocabulary; JSON schema; staged agent architecture; handles invalid JSON / hallucinated categories / inconsistent confidence / missing codes; recovery strategy; env-var secrets; README with all required content; QP-005/008/009/401 flagged ambiguous in sample; QP-009 → no_action; second provider tested).
+
+**QUALITY_GAPs** (documented, not hidden):
+- `samples/quickpay_v2.4.result.json` has synthetic reasoning text — README disclaims and gives regen instructions, but the most-visible artefact is test-harness output rather than real-LLM output.
+- `summary` block adds 4 fields beyond the PDF's spec (`mapped`, `llm_calls`, `tokens_used`, `budget_exhausted`) — non-breaking extensions but a literalist read could flag.
+
+**IMPROVEMENTs** (in scope, deferrable):
+- LLM fallback for `AmbiguousChunk` documented as deferred but not implemented; state-machine parsing covers all current fixtures so the gap isn't currently exercised.
+- Trade-offs section is at the bottom of the README; could be promoted with a callout near the top.
+
+**NIT**:
+- `Pipeline.lastResult / lastExit` instance-field workaround for "Java has no finally-return" — functional but stands out as the only ugly seam in otherwise clean code.
+
+**Single highest-leverage change**: run W8 once (~$0.01, 5 min) with a real Anthropic API key and replace `samples/quickpay_v2.4.result.json` with real-LLM output. Eliminates the synthetic-reasoning caveat.
+
 ## Final state
 
 - **13 commits** on `master` at `github.com/akazimirskiy/apm-decline-mapper`
