@@ -1,0 +1,7 @@
+patterns:
+  - match: "do not honor"
+    reason: "Valid one for contrast."
+  - match: "*invalid("
+    reason: "This regex does not compile."
+  - match: "[unterminated"
+    reason: "Neither does this one."

@@ -1,0 +1,3 @@
+patterns:
+  - match: ".*"
+    reason: "Matches everything."

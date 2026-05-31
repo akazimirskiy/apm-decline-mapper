@@ -1,0 +1,31 @@
+# Ambiguity patterns — V4 defence layer.
+#
+# Each entry's `match` regex is tested case-insensitively against `provider_message`.
+# Any match forces:
+#   confidence = LOW
+#   needs_human_review = true
+#   review_reason = "known_ambiguous_pattern: <reason>"
+# regardless of what the LLM said.
+#
+# Extensible without code changes. First match wins when multiple patterns match.
+# Bootstrap rejects empty, bare `.*`, `.+`, or anything matching curated unambiguous
+# reference messages.
+
+patterns:
+  - match: "do not honor"
+    reason: "Issuer catch-all — could be antifraud, limit, or generic decline."
+
+  - match: "do_not_honor"
+    reason: "Issuer catch-all — could be antifraud, limit, or generic decline."
+
+  - match: "duplicate"
+    reason: "Could be legitimate idempotency or replay attack."
+
+  - match: "not permitted"
+    reason: "Could be antifraud, card restriction, or MCC issue."
+
+  - match: "session expired"
+    reason: "Could be customer abandonment or system timeout."
+
+  - match: "unknown (reason|error)"
+    reason: "Unspecified — by definition ambiguous."

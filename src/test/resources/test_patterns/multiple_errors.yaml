@@ -1,0 +1,7 @@
+patterns:
+  - match: ".*"
+    reason: "Too broad."
+  - match: "*invalid("
+    reason: "Bad regex."
+  - match: "do not honor"
+    reason: "This one is fine."

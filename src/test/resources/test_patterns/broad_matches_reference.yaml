@@ -1,0 +1,3 @@
+patterns:
+  - match: "card"
+    reason: "Matches 'Card expired', 'Invalid card number' — too broad."

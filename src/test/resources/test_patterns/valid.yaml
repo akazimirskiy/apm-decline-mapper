@@ -1,0 +1,5 @@
+patterns:
+  - match: "do not honor"
+    reason: "Issuer catch-all."
+  - match: "duplicate"
+    reason: "Idempotency vs replay."
